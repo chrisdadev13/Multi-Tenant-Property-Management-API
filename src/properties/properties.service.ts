@@ -14,18 +14,81 @@ export class PropertiesService {
   }
 
   async search(tenantId: string, searchQuery: string): Promise<Property[]> {
-    const isSearchingByAssignedUser =
-      mongoose.Types.ObjectId.isValid(searchQuery);
-
-    const properties = this.propertyModel.aggregate([
+    const aggregationPipelines: mongoose.PipelineStage[] = [
       {
         $match: {
           tenant: new mongoose.Types.ObjectId(tenantId),
         },
       },
-    ]);
+      {
+        $lookup: {
+          from: 'users',
+          localField: 'assignedUsers',
+          foreignField: '_id',
+          as: 'assignedUsers',
+          pipeline: [
+            {
+              $project: {
+                _id: true,
+                name: true,
+                email: true,
+              },
+            },
+          ],
+        },
+      },
+      {
+        $match: {
+          $or: [
+            {
+              name: {
+                $regex: searchQuery,
+                $options: 'i',
+              },
+            },
+            {
+              'assignedUsers.name': {
+                $regex: searchQuery,
+                $options: 'i',
+              },
+            },
+            {
+              'assignedUsers.email': {
+                $regex: searchQuery,
+                $options: 'i',
+              },
+            },
+            {
+              'address.city': {
+                $regex: searchQuery,
+                $options: 'i',
+              },
+            },
+            {
+              'address.state': {
+                $regex: searchQuery,
+                $options: 'i',
+              },
+            },
+            {
+              'address.street': {
+                $regex: searchQuery,
+                $options: 'i',
+              },
+            },
+          ],
+        },
+      },
+    ];
 
-    return properties;
+    try {
+      const properties =
+        await this.propertyModel.aggregate(aggregationPipelines);
+
+      return properties;
+    } catch (error) {
+      console.error(error);
+    }
   }
 
   async update(id: string, property: Partial<Property>): Promise<Property> {

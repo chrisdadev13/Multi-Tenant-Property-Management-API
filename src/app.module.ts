@@ -7,6 +7,8 @@ import { MongooseModule } from '@nestjs/mongoose';
 import { RolesModule } from './roles/roles.module';
 import { PermissionsModule } from './permissions/permissions.module';
 import { PropertiesModule } from './properties/properties.module';
+import { TenanciesModule } from './tenancies/tenancies.module';
+import { JobsModule } from './jobs/jobs.module';
 
 @Module({
   imports: [
@@ -24,6 +26,8 @@ import { PropertiesModule } from './properties/properties.module';
       inject: [ConfigService],
     }),
     PropertiesModule,
+    TenanciesModule,
+    JobsModule,
   ],
 })
 export class AppModule {}

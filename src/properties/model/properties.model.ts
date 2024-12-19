@@ -23,11 +23,19 @@ class Address {
 export class Property {
   _id?: string;
 
-  @Prop({ required: true })
+  @Prop({
+    required: true,
+    text: true,
+  })
   name: string;
 
   @Prop({ type: Address, required: true })
   address: Address;
+
+  @Prop({
+    text: true,
+  })
+  addressText?: string;
 
   @Prop({
     type: Types.ObjectId,
@@ -50,3 +58,8 @@ export class Property {
 }
 
 export const PropertySchema = SchemaFactory.createForClass(Property);
+
+PropertySchema.pre('save', function (next) {
+  this.addressText = `${this.address.state}, ${this.address.city}, ${this.address.street}, ${this.address.zip}`;
+  next();
+});

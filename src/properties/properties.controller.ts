@@ -63,9 +63,9 @@ export class PropertiesController {
   @HttpCode(HttpStatus.OK)
   @Get('search')
   @Permissions('properties:read')
-  search(@Query() searchDto: SearchDto) {
+  search(@Request() req: Request, @Query() searchDto: SearchDto) {
     return this.PropertiesService.search(
-      searchDto.tenantId,
+      req['user'].tenant,
       searchDto.searchParam,
     );
   }
