@@ -1,9 +1,187 @@
-import { Connection } from 'mongoose';
+import { Connection, Types } from 'mongoose';
 import * as bcrypt from 'bcrypt';
+
+const Resources = {
+  PROPERTIES: 'properties',
+  JOBS: 'jobs',
+  USERS: 'users',
+  TENANCIES: 'tenancies',
+} as const;
+
+const Actions = {
+  CREATE: 'create',
+  READ: 'read',
+  UPDATE: 'update',
+  DELETE: 'delete',
+  ASSIGN: 'assign',
+} as const;
+
+const SYSTEM_PERMISSIONS = [
+  {
+    resource: 'properties',
+    action: 'create',
+    description: 'Can create new properties',
+  },
+  {
+    resource: 'properties',
+    action: 'read',
+    description: 'Can view properties',
+  },
+  {
+    resource: 'properties',
+    action: 'update',
+    description: 'Can modify property details',
+  },
+  {
+    resource: 'properties',
+    action: 'delete',
+    description: 'Can remove properties',
+  },
+  {
+    resource: 'tenancies',
+    action: 'create',
+    description: 'Can create new tenancies',
+  },
+  {
+    resource: 'tenancies',
+    action: 'read',
+    description: 'Can view tenancies',
+  },
+  {
+    resource: 'tenancies',
+    action: 'update',
+    description: 'Can modify property tenancies',
+  },
+  {
+    resource: 'tenancies',
+    action: 'delete',
+    description: 'Can remove tenancies',
+  },
+  {
+    resource: 'jobs',
+    action: 'create',
+    description: 'Can create maintenance jobs',
+  },
+  {
+    resource: 'jobs',
+    action: 'read',
+    description: 'Can view maintenance jobs',
+  },
+  {
+    resource: 'jobs',
+    action: 'update',
+    description: 'Can update job status',
+  },
+  {
+    resource: 'jobs',
+    action: 'assign',
+    description: 'Can assign jobs to staff',
+  },
+  {
+    resource: 'users',
+    action: 'create',
+    description: 'Can create new users',
+  },
+  {
+    resource: 'users',
+    action: 'read',
+    description: 'Can view users',
+  },
+  {
+    resource: 'users',
+    action: 'update',
+    description: 'Can modify user details',
+  },
+  {
+    resource: 'users',
+    action: 'delete',
+    description: 'Can delete users',
+  },
+];
+
+const RoleTemplates = {
+  ADMIN: {
+    name: 'Admin',
+    description: 'Full system access with all permissions',
+    permissionRules: [
+      {
+        resource: Resources.PROPERTIES,
+        actions: [Actions.CREATE, Actions.READ, Actions.UPDATE, Actions.DELETE],
+      },
+      {
+        resource: Resources.JOBS,
+        actions: [
+          Actions.CREATE,
+          Actions.READ,
+          Actions.UPDATE,
+          Actions.DELETE,
+          Actions.ASSIGN,
+        ],
+      },
+      {
+        resource: Resources.USERS,
+        actions: [Actions.CREATE, Actions.READ, Actions.UPDATE, Actions.DELETE],
+      },
+      {
+        resource: Resources.TENANCIES,
+        actions: [Actions.CREATE, Actions.READ, Actions.UPDATE, Actions.DELETE],
+      },
+    ],
+  },
+  PROPERTY_MANAGER: {
+    name: 'Property Manager',
+    description: 'Can manage properties and handle maintenance jobs',
+    permissionRules: [
+      {
+        resource: Resources.PROPERTIES,
+        actions: [Actions.READ, Actions.UPDATE],
+      },
+      {
+        resource: Resources.JOBS,
+        actions: [Actions.CREATE, Actions.READ, Actions.UPDATE, Actions.ASSIGN],
+      },
+      {
+        resource: Resources.TENANCIES,
+        actions: [Actions.READ, Actions.UPDATE],
+      },
+    ],
+  },
+  USER: {
+    name: 'User',
+    description: 'Regular user with basic access',
+    permissionRules: [
+      {
+        resource: Resources.PROPERTIES,
+        actions: [Actions.READ],
+      },
+      {
+        resource: Resources.JOBS,
+        actions: [Actions.READ, Actions.CREATE],
+      },
+      {
+        resource: Resources.TENANCIES,
+        actions: [Actions.READ],
+      },
+    ],
+  },
+};
 
 async function hashPassword(password: string): Promise<string> {
   const salt = await bcrypt.genSalt(10);
   return bcrypt.hash(password, salt);
+}
+
+function getPermissionIds(
+  permissions: Record<string, Types.ObjectId>,
+  resource: string,
+  actions: string[],
+): Types.ObjectId[] {
+  return Object.entries(permissions)
+    .filter(([key]) => {
+      const [res, action] = key.split(':');
+      return res === resource && actions.includes(action);
+    })
+    .map(([, id]) => id);
 }
 
 export async function seed(connection: Connection) {
@@ -17,34 +195,18 @@ export async function seed(connection: Connection) {
     connection.collection('jobs').deleteMany({}),
   ]);
 
-  const permissions = await connection.collection('permissions').insertMany([
-    {
-      resource: 'users',
-      action: 'create',
-      description: 'Can create users',
-      uniqueKey: 'users:create',
-    },
-    {
-      resource: 'users',
-      action: 'read',
-      description: 'Can read users',
-      uniqueKey: 'users:read',
-    },
-    {
-      resource: 'properties',
-      action: 'manage',
-      description: 'Can manage properties',
-      uniqueKey: 'properties:manage',
-    },
-    {
-      resource: 'tenancies',
-      action: 'manage',
-      description: 'Can manage tenancies',
-      uniqueKey: 'tenancies:manage',
-    },
-  ]);
+  const permissionsMap: Record<string, Types.ObjectId> = {};
+  for (const permission of SYSTEM_PERMISSIONS) {
+    const result = await connection.collection('permissions').insertOne({
+      ...permission,
+      uniqueKey: `${permission.resource}:${permission.action}`,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    permissionsMap[`${permission.resource}:${permission.action}`] =
+      result.insertedId;
+  }
 
-  // 2. Create initial admin user (without tenant and role)
   const adminUser = await connection.collection('users').insertOne({
     name: 'System Admin',
     email: 'admin@example.com',
@@ -53,7 +215,6 @@ export async function seed(connection: Connection) {
     updatedAt: new Date(),
   });
 
-  // 3. Create Tenant
   const tenant = await connection.collection('tenants').insertOne({
     name: 'Sample Property Management',
     contactEmail: 'contact@sample.com',
@@ -63,45 +224,43 @@ export async function seed(connection: Connection) {
     updatedAt: new Date(),
   });
 
-  // 4. Create Roles
-  const roles = await connection.collection('roles').insertMany([
-    {
-      name: 'Admin',
-      tenant: tenant.insertedId,
-      permissions: Object.values(permissions.insertedIds),
-      description: 'Full system access',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-    {
-      name: 'Property Manager',
-      tenant: tenant.insertedId,
-      permissions: [permissions.insertedIds[2], permissions.insertedIds[3]], // properties and tenancies manage
-      description: 'Can manage properties and tenancies',
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    },
-  ]);
+  const rolesMap: Record<string, Types.ObjectId> = {};
+  for (const [key, template] of Object.entries(RoleTemplates)) {
+    const permissionIds: Types.ObjectId[] = [];
+    template.permissionRules.forEach((rule) => {
+      permissionIds.push(
+        ...getPermissionIds(permissionsMap, rule.resource, rule.actions),
+      );
+    });
 
-  // 5. Update admin user with tenant and role
+    const result = await connection.collection('roles').insertOne({
+      name: template.name,
+      description: template.description,
+      tenant: tenant.insertedId,
+      permissions: permissionIds,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+    rolesMap[key] = result.insertedId;
+  }
+
   await connection.collection('users').updateOne(
     { _id: adminUser.insertedId },
     {
       $set: {
         tenant: tenant.insertedId,
-        role: roles.insertedIds[0], // Admin role
+        role: rolesMap.ADMIN,
       },
     },
   );
 
-  // 6. Create additional users
   const users = await connection.collection('users').insertMany([
     {
       name: 'Property Manager',
       email: 'manager@example.com',
       password: await hashPassword('manager123'),
       tenant: tenant.insertedId,
-      role: roles.insertedIds[1], // Property Manager role
+      role: rolesMap.PROPERTY_MANAGER,
       createdAt: new Date(),
       updatedAt: new Date(),
     },
@@ -110,12 +269,12 @@ export async function seed(connection: Connection) {
       email: 'tenant@example.com',
       password: await hashPassword('tenant123'),
       tenant: tenant.insertedId,
+      role: rolesMap.USER,
       createdAt: new Date(),
       updatedAt: new Date(),
     },
   ]);
 
-  // 7. Create Properties
   const properties = await connection.collection('properties').insertMany([
     {
       name: 'Sunset Apartments',
@@ -149,7 +308,6 @@ export async function seed(connection: Connection) {
     },
   ]);
 
-  // 8. Create Tenancies
   await connection.collection('tenancies').insertMany([
     {
       tenant: tenant.insertedId,
@@ -163,7 +321,6 @@ export async function seed(connection: Connection) {
     },
   ]);
 
-  // 9. Create Jobs
   await connection.collection('jobs').insertMany([
     {
       tenant: tenant.insertedId,

@@ -19,6 +19,12 @@ import {
   PermissionSchema,
 } from 'src/permissions/model/permissions.model';
 import { PermissionGuard } from 'src/permissions/permissions.guard';
+import { Job, JobSchema } from 'src/jobs/model/jobs.model';
+import {
+  Property,
+  PropertySchema,
+} from 'src/properties/model/properties.model';
+import { Tenancy, TenancySchema } from 'src/tenancies/model/tenancies.model';
 
 @Module({
   imports: [
@@ -31,6 +37,9 @@ import { PermissionGuard } from 'src/permissions/permissions.guard';
       { name: User.name, schema: UserSchema },
       { name: Role.name, schema: RoleSchema },
       { name: Permission.name, schema: PermissionSchema },
+      { name: Job.name, schema: JobSchema },
+      { name: Property.name, schema: PropertySchema },
+      { name: Tenancy.name, schema: TenancySchema },
     ]),
   ],
   providers: [

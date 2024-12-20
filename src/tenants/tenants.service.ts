@@ -4,16 +4,22 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
+import mongoose, { Model } from 'mongoose';
 import { Tenant } from './model/tenants.model';
 import { User } from 'src/users/model/users.model';
 import { RolesService } from 'src/roles/roles.service';
+import { Job } from 'src/jobs/model/jobs.model';
+import { Property } from 'src/properties/model/properties.model';
+import { Tenancy } from 'src/tenancies/model/tenancies.model';
 
 @Injectable()
 export class TenantsService {
   constructor(
     @InjectModel(Tenant.name) private readonly tenantModel: Model<Tenant>,
     @InjectModel(User.name) private readonly userModel: Model<User>,
+    @InjectModel(Job.name) private readonly jobModel: Model<Job>,
+    @InjectModel(Property.name) private readonly propertyModel: Model<Property>,
+    @InjectModel(Tenancy.name) private readonly tenancyModel: Model<Tenancy>,
     private readonly rolesService: RolesService,
   ) {}
 
@@ -63,6 +69,75 @@ export class TenantsService {
       { $set: tenant },
       { new: true },
     );
+  }
+
+  async getDashboardData(tenantId: string) {
+    const tenant = new mongoose.Types.ObjectId(tenantId);
+
+    const [propertyStats, tenancyStats, jobStats, userStats] =
+      await Promise.all([
+        this.propertyModel.countDocuments({ tenant }),
+        this.tenancyModel.aggregate([
+          {
+            $match: {
+              tenant,
+              status: 'active',
+              endDate: { $gt: new Date() },
+            },
+          },
+          {
+            $count: 'total',
+          },
+        ]),
+        this.jobModel.aggregate([
+          {
+            $match: { tenant },
+          },
+          {
+            $group: {
+              _id: '$status',
+              count: { $sum: 1 },
+            },
+          },
+        ]),
+        this.userModel.aggregate([
+          {
+            $match: { tenant },
+          },
+          {
+            $lookup: {
+              from: 'roles',
+              localField: 'role',
+              foreignField: '_id',
+              as: 'role',
+            },
+          },
+          {
+            $unwind: '$role',
+          },
+          {
+            $project: {
+              name: true,
+              email: true,
+              role: '$role.name',
+            },
+          },
+        ]),
+      ]);
+
+    return {
+      totalProperties: propertyStats,
+      totalActiveTenancies: tenancyStats[0]?.total || 0,
+      jobStatusBreakdown: jobStats.map(({ _id, count }) => ({
+        status: _id,
+        count,
+      })),
+      users: userStats.map(({ name, email, role }) => ({
+        name,
+        email,
+        role,
+      })),
+    };
   }
 
   async delete(id: string): Promise<Tenant> {

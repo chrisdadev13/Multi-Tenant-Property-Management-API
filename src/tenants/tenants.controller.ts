@@ -37,6 +37,13 @@ export class TenantsController {
       owner: new Types.ObjectId(req['user'].sub as string),
     });
   }
+
+  @HttpCode(HttpStatus.OK)
+  @Get('dashboard')
+  dashboard(@Request() req: Request) {
+    return this.tenantsService.getDashboardData(req['user'].tenant);
+  }
+
   @HttpCode(HttpStatus.OK)
   @Get(':id')
   findOne(@Param() params: { id: string }) {
