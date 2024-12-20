@@ -10,6 +10,7 @@ import {
   Param,
   Delete,
   Get,
+  Query,
 } from '@nestjs/common';
 import { TenantsService } from './tenants.service';
 import { CreateDto } from './dto/create.dto';
@@ -17,6 +18,7 @@ import { AuthGuard } from 'src/auth/auth.guard';
 import { Types } from 'mongoose';
 import { Permissions } from 'src/permissions/permissions.decorator';
 import { PermissionGuard } from 'src/permissions/permissions.guard';
+import { DashboardQueryDto } from './dto/dashhboard.dto';
 
 @Controller({
   path: 'tenants',
@@ -40,8 +42,16 @@ export class TenantsController {
 
   @HttpCode(HttpStatus.OK)
   @Get('dashboard')
-  dashboard(@Request() req: Request) {
-    return this.tenantsService.getDashboardData(req['user'].tenant);
+  dashboard(
+    @Request() req: Request,
+    @Query() dashboardQueryDto: DashboardQueryDto,
+  ) {
+    return this.tenantsService.getDashboardData(req['user'].tenant, {
+      page: dashboardQueryDto.page,
+      limit: dashboardQueryDto.limit,
+      sortBy: dashboardQueryDto.sortBy,
+      sortOrder: dashboardQueryDto.sortOrder,
+    });
   }
 
   @HttpCode(HttpStatus.OK)

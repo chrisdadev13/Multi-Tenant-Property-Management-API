@@ -12,6 +12,13 @@ import { Job } from 'src/jobs/model/jobs.model';
 import { Property } from 'src/properties/model/properties.model';
 import { Tenancy } from 'src/tenancies/model/tenancies.model';
 
+interface PaginationOptions {
+  page?: number;
+  limit?: number;
+  sortBy?: string;
+  sortOrder?: 'asc' | 'desc';
+}
+
 @Injectable()
 export class TenantsService {
   constructor(
@@ -71,10 +78,54 @@ export class TenantsService {
     );
   }
 
-  async getDashboardData(tenantId: string) {
+  async getDashboardData(tenantId: string, pagination?: PaginationOptions) {
     const tenant = new mongoose.Types.ObjectId(tenantId);
 
-    const [propertyStats, tenancyStats, jobStats, userStats] =
+    const page = Number(pagination.page) ?? 1;
+    const limit = Number(pagination.limit) ?? 10;
+    const skip = (page - 1) * limit;
+
+    const sortField = pagination.sortBy ?? 'createdAt';
+    const sortOrder = pagination.sortOrder === 'desc' ? -1 : 1;
+
+    const paginando = await this.userModel.aggregate([
+      {
+        $sort: {
+          [sortField]: sortOrder,
+        },
+      },
+      {
+        $match: { tenant },
+      },
+      {
+        $lookup: {
+          from: 'roles',
+          localField: 'role',
+          foreignField: '_id',
+          as: 'role',
+        },
+      },
+      {
+        $unwind: '$role',
+      },
+      {
+        $skip: skip,
+      },
+      {
+        $limit: limit,
+      },
+      {
+        $project: {
+          name: true,
+          email: true,
+          role: '$role.name',
+        },
+      },
+    ]);
+
+    console.log(paginando);
+
+    const [propertyStats, tenancyStats, jobStats, userStats, totalUsers] =
       await Promise.all([
         this.propertyModel.countDocuments({ tenant }),
         this.tenancyModel.aggregate([
@@ -102,6 +153,11 @@ export class TenantsService {
         ]),
         this.userModel.aggregate([
           {
+            $sort: {
+              [sortField]: sortOrder,
+            },
+          },
+          {
             $match: { tenant },
           },
           {
@@ -116,6 +172,12 @@ export class TenantsService {
             $unwind: '$role',
           },
           {
+            $skip: skip,
+          },
+          {
+            $limit: limit,
+          },
+          {
             $project: {
               name: true,
               email: true,
@@ -123,7 +185,17 @@ export class TenantsService {
             },
           },
         ]),
+        this.userModel.aggregate([
+          {
+            $match: { tenant },
+          },
+          {
+            $count: 'total',
+          },
+        ]),
       ]);
+
+    const totalPages = Math.ceil((totalUsers[0]?.total || 0) / limit);
 
     return {
       totalProperties: propertyStats,
@@ -132,11 +204,19 @@ export class TenantsService {
         status: _id,
         count,
       })),
-      users: userStats.map(({ name, email, role }) => ({
-        name,
-        email,
-        role,
-      })),
+      users: {
+        data: userStats.map(({ name, email, role }) => ({
+          name,
+          email,
+          role,
+        })),
+        pagination: {
+          currentPage: page,
+          totalPages,
+          totalItems: totalUsers[0]?.total || 0,
+          itemsPerPage: limit,
+        },
+      },
     };
   }
 
