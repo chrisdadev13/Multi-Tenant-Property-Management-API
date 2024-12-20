@@ -12,6 +12,7 @@ import { JobsModule } from './jobs/jobs.module';
 import { CliModule } from './cli/cli.module';
 import { CommandModule } from 'nestjs-command';
 import { SeedCommand } from './commands/seed/seed.command';
+import { JobHistoryModule } from './job-history/job-history.module';
 
 @Module({
   imports: [
@@ -33,6 +34,7 @@ import { SeedCommand } from './commands/seed/seed.command';
     TenanciesModule,
     JobsModule,
     CliModule,
+    JobHistoryModule,
   ],
   providers: [SeedCommand],
 })

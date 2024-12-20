@@ -9,7 +9,7 @@ export type JobDocument = HydratedDocument<Job>;
 enum JobStatus {
   PENDING = 'pending',
   ACTIVE = 'active',
-  completed = 'completed',
+  COMPLETED = 'completed',
 }
 
 @Schema({
