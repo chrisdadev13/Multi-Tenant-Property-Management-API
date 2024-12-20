@@ -33,7 +33,7 @@ Password: admin123
 
 ## Login as Property Manager
 ```bash
-Email: tenant@example.com
+Email: manager@example.com
 Password: manager123
 ```     
 
