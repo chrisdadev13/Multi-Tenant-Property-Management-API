@@ -25,6 +25,23 @@ $ npm run start:dev
 
 [Postman Collection](https://www.postman.com/chrisdadev13/my-workspace)
 
+## Login as Admin
+```bash
+Email: admin@example.com
+Password: admin123
+```
+
+## Login as Property Manager
+```bash
+Email: tenant@example.com
+Password: manager123
+```     
+
+## Login as User
+```bash
+Email: tenant@example.com
+Password: tenant123
+```
 
 ## Database
 
