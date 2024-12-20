@@ -17,7 +17,6 @@ import {
         name: Role.name,
         schema: RoleSchema,
       },
-
       { name: Permission.name, schema: PermissionSchema },
     ]),
   ],

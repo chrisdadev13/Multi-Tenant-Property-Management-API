@@ -73,7 +73,7 @@ export const RoleTemplates: Record<string, RoleTemplate> = {
       },
     ],
   },
-  TENANT: {
+  USER: {
     name: 'User',
     description: 'Regular user with basic access',
     permissionRules: [

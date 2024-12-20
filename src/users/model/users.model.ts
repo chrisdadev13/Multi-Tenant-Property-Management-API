@@ -9,7 +9,7 @@ export type UserDocument = HydratedDocument<User>;
   timestamps: true,
 })
 export class User {
-  _id: string;
+  _id: Types.ObjectId | string;
 
   @Prop()
   name: string;

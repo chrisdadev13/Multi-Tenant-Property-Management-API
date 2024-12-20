@@ -4,6 +4,8 @@ import { Tenant } from 'src/tenants/model/tenants.model';
 
 @Schema({ timestamps: true })
 export class Role extends Document {
+  _id: Types.ObjectId | string;
+
   @Prop({ required: true })
   name: string;
 
